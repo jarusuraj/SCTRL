@@ -130,10 +130,8 @@ class SCTRLService:
             self._discovery_result.tier_result.reason,
         )
 
-        # Apply persisted opt-ins
-        if self._config.optin_experimental:
-            for feat_name in ("performance_profile", "charge_limit"):
-                self._registry.set_optin(feat_name, True)
+        # Security: Imported config CANNOT enable opt-ins automatically.
+        # Opt-ins require explicit, authenticated runtime authorization via SetFeatureOptIn.
 
         # 5. Model profile mapping for performance profiles
         model_mapping = None
