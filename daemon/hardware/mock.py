@@ -914,3 +914,18 @@ def create_mock_backends(
         "keyboard": MockKeyboardBackend(config),
         "system_info": MockSystemInfoBackend(config),
     }
+
+
+class MockHardwareManager:
+    """Convenience wrapper around mock hardware backends."""
+
+    def __init__(self, config: MockConfig | None = None) -> None:
+        self.backends = create_mock_backends(config)
+        self.sensor = self.backends["sensor"]
+        self.fan = self.backends["fan_control"]
+        self.profile = self.backends["profile"]
+        self.battery = self.backends["battery"]
+        self.keyboard = self.backends["keyboard"]
+        self.system_info = self.backends["system_info"]
+        self.config = self.backends["config"]
+

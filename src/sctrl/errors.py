@@ -163,3 +163,30 @@ class LeaseError(SCTRLError):
         code: ErrorCode = ErrorCode.LEASE_EXPIRED,
     ) -> None:
         super().__init__(message, code)
+
+
+class UnsupportedError(SCTRLError):
+    """Operation or feature unsupported on this platform."""
+
+    def __init__(
+        self,
+        message: str,
+        code: ErrorCode = ErrorCode.FEATURE_UNSUPPORTED,
+        details: dict[str, Any] | None = None,
+    ) -> None:
+        super().__init__(message, code, details)
+
+
+class HardwareWriteError(HardwareError):
+    """Failed write to hardware."""
+
+    def __init__(
+        self,
+        message: str,
+        feature: str = "",
+        details: dict[str, Any] | None = None,
+    ) -> None:
+        full_details = {"feature": feature}
+        if details:
+            full_details.update(details)
+        super().__init__(message, ErrorCode.WRITE_FAILED, interface=feature, details=full_details)

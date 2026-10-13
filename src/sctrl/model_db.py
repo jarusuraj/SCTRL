@@ -351,10 +351,12 @@ class ModelDatabase:
     Profiles are indexed by exact DMI product_name for O(1) lookup.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, directory: Path | None = None) -> None:
         self._profiles: dict[str, ModelProfile] = {}  # product_name -> profile
         self._all_profiles: list[ModelProfile] = []
         self._load_errors: list[str] = []
+        if directory is not None:
+            self.load_from_directory(directory)
 
     @property
     def profiles(self) -> list[ModelProfile]:

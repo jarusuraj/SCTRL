@@ -113,3 +113,22 @@ SAFETY_NOTICE: str = (
     "using this software, you acknowledge that you understand the risks "
     "and accept full responsibility for any consequences."
 )
+
+# -- Convenience Aliases ---------------------------------------------------
+
+VERSION: str = APP_VERSION
+DBUS_SERVICE_NAME: str = DBUS_BUS_NAME
+CONFIG_FILE: Path = DAEMON_CONFIG_FILE
+LOG_FILE: Path = Path("/var/log/sctrl/sctrld.log")
+SYSFS_DMI_ID: Path = SYSFS_DMI_DIR
+SYSFS_HWMON: Path = SYSFS_HWMON_DIR
+SYSFS_POWER_SUPPLY: Path = SYSFS_POWER_SUPPLY_DIR
+SYSFS_PCI_DEVICES: Path = Path("/sys/bus/pci/devices")
+SYSFS_ACER_WMI: Path = Path("/sys/devices/platform/acer-wmi")
+SYSFS_LEDS: Path = Path("/sys/class/leds")
+TELEMETRY_POLL_INTERVAL_S: float = DEFAULT_MONITOR_INTERVAL_S
+DEFAULT_CHARGE_LIMIT_PCT: int = DEFAULT_CHARGE_LIMIT_PERCENT
+DEFAULT_KEYBOARD_BRIGHTNESS: int = 100
+DEFAULT_PROFILES: list[str] = ["quiet", "balanced", "performance", "turbo"]
+MODELS_DB_DIR: Path = Path(__file__).parent / MODELS_DB_DIR_NAME
+

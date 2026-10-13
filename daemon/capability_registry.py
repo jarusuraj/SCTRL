@@ -63,6 +63,16 @@ class CapabilityRegistry:
         """Get a single capability record."""
         return self._capabilities.get(feature_id)
 
+    get = get_capability
+
+    def update_value(self, feature_id: FeatureId, value: Any) -> None:
+        """Update current_value for an existing capability."""
+        cap = self._capabilities.get(feature_id)
+        if cap:
+            # CapabilityRecord is frozen, so replace with updated copy
+            from dataclasses import replace
+            self._capabilities[feature_id] = replace(cap, current_value=value)
+
     def get_all_capabilities(self) -> dict[FeatureId, CapabilityRecord]:
         """Get all capabilities."""
         return dict(self._capabilities)

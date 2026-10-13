@@ -108,6 +108,10 @@ class ThermalPolicy:
     def thresholds(self) -> ThermalThresholds:
         return self._thresholds
 
+    def set_emergency_callback(self, callback: Callable[[bool], None]) -> None:
+        """Set callback for emergency triggers (True=active, False=cleared)."""
+        self._emergency_cb = callback
+
     def update_thresholds(self, thresholds: ThermalThresholds) -> None:
         """Update thermal thresholds."""
         self._thresholds = thresholds
@@ -250,6 +254,8 @@ class ThermalPolicy:
                 # Trigger emergency callback
                 if self._on_emergency:
                     self._on_emergency(alert.message)
+                if hasattr(self, "_emergency_cb") and self._emergency_cb:
+                    self._emergency_cb(True)
                 if self._on_alert:
                     self._on_alert(alert)
 
@@ -276,6 +282,9 @@ class ThermalPolicy:
             elif new_state == ThermalState.NORMAL and current_state in (
                 ThermalState.WARNING, ThermalState.CRITICAL,
             ):
+                if current_state == ThermalState.CRITICAL:
+                    if hasattr(self, "_emergency_cb") and self._emergency_cb:
+                        self._emergency_cb(False)
                 logger.info(
                     "Thermal normalized: %s at %.1fC", sensor, temp,
                 )
