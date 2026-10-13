@@ -61,7 +61,7 @@ class PlatformProfileBackend(ProfileBackend):
     def get_current_profile(self) -> str:
         if not self._profile_file.exists():
             return ""
-        try:
+        try:        
             return self._profile_file.read_text().strip()
         except Exception as e:
             logger.debug("Failed reading platform_profile: %s", e)

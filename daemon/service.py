@@ -58,6 +58,7 @@ class SCTRLService:
         config_path: Path | str | None = None,
         models_dir: Path | str | None = None,
         poll_interval_s: float = 1.0,
+        read_only_discovery: bool = False,
     ) -> None:
         self._mock_mode = mock_mode
         self._mock_model_str = mock_model
@@ -66,6 +67,7 @@ class SCTRLService:
         self._registry = CapabilityRegistry()
         self._model_db = ModelDatabase(self._models_dir)
         self._poll_interval = poll_interval_s
+        self._read_only_discovery = read_only_discovery
 
         self._recent_errors: list[str] = []
         self._telemetry_subscribers: list[Callable[[TelemetrySnapshot], None]] = []
@@ -165,8 +167,9 @@ class SCTRLService:
             on_thermal_alert=self._dispatch_alert,
         )
 
-        # 9. Apply initial configuration safely
-        self._apply_initial_config()
+        # 9. Apply initial configuration safely (skip in read-only discovery mode)
+        if not self._read_only_discovery:
+            self._apply_initial_config()
 
     def _apply_initial_config(self) -> None:
         """Apply stored user preferences respecting tier permissions."""
@@ -270,7 +273,7 @@ class SCTRLService:
         return DaemonState(
             tier=self._registry.tier,
             tier_reason=self._registry.tier_reason,
-            model_profile=self._discovery_result.profile.identification.model_name if self._discovery_result.profile else "",
+            model_profile=self._discovery_result.profile.product_names[0] if (self._discovery_result.profile and self._discovery_result.profile.product_names) else "",
             dmi=self._discovery_result.dmi,
             fan_mode=self._fan_mgr.current_mode,
             fan_lease_active=self._fan_mgr.has_active_lease,
@@ -296,7 +299,7 @@ class SCTRLService:
             dmi=self._discovery_result.dmi,
             tier=self._registry.tier,
             tier_reason=self._registry.tier_reason,
-            model_profile=self._discovery_result.profile.identification.model_name if self._discovery_result.profile else "",
+            model_profile=self._discovery_result.profile.product_names[0] if (self._discovery_result.profile and self._discovery_result.profile.product_names) else "",
             kernel_version=self._sys_info.get_kernel_version(),
             distro=self._sys_info.get_distro_info(),
             active_drivers=self._discovery_result.active_drivers,

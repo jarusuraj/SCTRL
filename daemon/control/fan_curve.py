@@ -182,26 +182,34 @@ class FanCurveController:
         self._last_speed = None
         self._last_change_time = 0.0
 
-    def compute_speed(self, temp_c: float, current_time: float) -> int:
+    def compute_speed(
+        self,
+        temp_c: float,
+        current_time: float | None = None,
+        now: float | None = None,
+    ) -> int:
         """Compute the target speed with hysteresis and dwell time.
 
         Args:
             temp_c: Current temperature.
-            current_time: Monotonic timestamp.
+            current_time: Monotonic timestamp (optional, defaults to time.monotonic).
+            now: Alias for current_time.
 
         Returns:
             Target fan speed percentage.
         """
+        import time
+        ts = current_time if current_time is not None else (now if now is not None else time.monotonic())
         raw_speed = interpolate_fan_speed(self._curve, temp_c)
 
         if self._last_speed is None:
             self._last_speed = raw_speed
-            self._last_change_time = current_time
+            self._last_change_time = ts
             self._last_temp = temp_c
             return raw_speed
 
         # Check dwell time
-        elapsed = current_time - self._last_change_time
+        elapsed = ts - self._last_change_time
         if elapsed < self._curve.min_dwell_s:
             return self._last_speed
 
@@ -212,13 +220,13 @@ class FanCurveController:
             # unless the raw speed is higher (temperature increasing)
             if raw_speed > self._last_speed:
                 self._last_speed = raw_speed
-                self._last_change_time = current_time
+                self._last_change_time = ts
                 self._last_temp = temp_c
             return self._last_speed
 
         # Temperature changed sufficiently
         self._last_speed = raw_speed
-        self._last_change_time = current_time
+        self._last_change_time = ts
         self._last_temp = temp_c
         return raw_speed
 

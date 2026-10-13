@@ -52,8 +52,12 @@ def main() -> None:
     parser = argparse.ArgumentParser(prog="sctrl", description=f"SCTRL CLI v{VERSION}")
     parser.add_argument("--mock", action="store_true", help="Run with local mock backend")
     parser.add_argument("--tier", default="verified", help="Mock tier (verified, community, detected, unsupported)")
+    parser.add_argument("--discover", action="store_true", help="Run read-only hardware discovery and print capabilities without any writes")
 
     subparsers = parser.add_subparsers(dest="command")
+
+    # discover
+    subparsers.add_parser("discover", help="Run read-only discovery mode and display capabilities")
 
     # status
     subparsers.add_parser("status", help="Show current system status and telemetry")
@@ -79,8 +83,25 @@ def main() -> None:
 
     args = parser.parse_args()
 
-    # Create local service instance (handles mock or direct call)
     from daemon.service import SCTRLService
+
+    if args.discover or args.command == "discover":
+        service = SCTRLService(mock_mode=args.mock, mock_model=args.tier, read_only_discovery=True)
+        diag = service.get_diagnostics().to_dict()
+        print("=== SCTRL Read-Only Hardware Discovery ===")
+        print(f"Product:   {diag['dmi']['product_name']} ({diag['dmi']['board_name']})")
+        print(f"Vendor:    {diag['dmi']['vendor']}")
+        print(f"BIOS:      {diag['dmi']['bios_version']}")
+        print(f"Tier:      {diag['tier'].upper()} - {diag['tier_reason']}")
+        print(f"Drivers:   {', '.join(diag['active_drivers'])}")
+        print("\nCapabilities Discovered:")
+        for cap in diag['capabilities']:
+            r_w = f"[{'R' if cap['readable'] else '-'}{'W' if cap['writable'] else '-'}]"
+            print(f"  {r_w} {cap['feature_id']:<22} status={cap['status']:<12} iface={cap['interface']}")
+        print("==========================================")
+        return
+
+    # Create local service instance (handles mock or direct call)
     service = SCTRLService(mock_mode=args.mock, mock_model=args.tier)
     service.tick()
 

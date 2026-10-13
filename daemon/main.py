@@ -60,6 +60,11 @@ def parse_args() -> argparse.Namespace:
         help="Run standalone engine without connecting to D-Bus",
     )
     parser.add_argument(
+        "--discover",
+        action="store_true",
+        help="Run read-only hardware discovery, print capabilities, and exit without any writes",
+    )
+    parser.add_argument(
         "-v", "--verbose",
         action="store_true",
         help="Enable debug logging",
@@ -69,7 +74,31 @@ def parse_args() -> argparse.Namespace:
 
 async def run_daemon(args: argparse.Namespace) -> None:
     level = logging.DEBUG if args.verbose else logging.INFO
-    setup_logging(level=level, log_file=LOG_FILE if not args.mock else None)
+    setup_logging(level=level, log_file=LOG_FILE if (not args.mock and not args.discover) else None)
+
+    if args.discover:
+        # Read-only discovery mode: instantiate service, print capabilities, and exit with ZERO writes
+        service = SCTRLService(
+            mock_mode=args.mock,
+            mock_model=args.tier,
+            config_path=args.config,
+            models_dir=args.models,
+            read_only_discovery=True,
+        )
+        import json
+        diag = service.get_diagnostics().to_dict()
+        print("=== SCTRL Read-Only Hardware Discovery ===")
+        print(f"Product:   {diag['dmi']['product_name']} ({diag['dmi']['board_name']})")
+        print(f"Vendor:    {diag['dmi']['vendor']}")
+        print(f"BIOS:      {diag['dmi']['bios_version']}")
+        print(f"Tier:      {diag['tier'].upper()} - {diag['tier_reason']}")
+        print(f"Drivers:   {', '.join(diag['active_drivers'])}")
+        print("\nCapabilities Discovered:")
+        for cap in diag['capabilities']:
+            r_w = f"[{'R' if cap['readable'] else '-'}{'W' if cap['writable'] else '-'}]"
+            print(f"  {r_w} {cap['feature_id']:<22} status={cap['status']:<12} iface={cap['interface']}")
+        print("==========================================")
+        return
 
     logger.info("Starting SCTRL Daemon v%s", VERSION)
     if args.mock:

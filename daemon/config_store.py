@@ -173,10 +173,10 @@ class ConfigStore:
 
         # Top-level primitives
         for k, v in data.items():
-            if isinstance(v, (int, float)):
-                lines.append(f"{k} = {v}")
-            elif isinstance(v, bool):
+            if isinstance(v, bool):
                 lines.append(f"{k} = {'true' if v else 'false'}")
+            elif isinstance(v, (int, float)):
+                lines.append(f"{k} = {v}")
             elif isinstance(v, str):
                 lines.append(f'{k} = "{v}"')
             elif isinstance(v, list):

@@ -1,0 +1,26 @@
+[Unit]
+Description=SCTRL Daemon - Acer Laptop Hardware Control & Monitoring
+Documentation=https://github.com/sctrl/sctrl
+After=syslog.target systemd-modules-load.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 -m daemon.main
+Restart=on-failure
+RestartSec=5s
+Nice=-10
+KillMode=mixed
+TimeoutStopSec=10s
+
+# Sandboxing & Security
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ProtectKernelTunables=false
+ProtectControlGroups=true
+
+# Writable paths for hardware control and configuration
+ReadWritePaths=/etc/sctrl /run/sctrl /var/log/sctrl /sys/devices/platform/acer-wmi /sys/firmware/acpi/platform_profile /sys/class/power_supply /sys/class/leds
+
+[Install]
+WantedBy=multi-user.target

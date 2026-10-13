@@ -386,6 +386,14 @@ class MockFanControlBackend(FanControlBackend):
         return self._current_mode
 
     def set_mode_auto(self) -> WriteResult:
+        if self._config.simulate_permission_denied:
+            return WriteResult(
+                success=False,
+                feature=FeatureId.FAN_MODE,
+                requested_value="auto",
+                backend=self.backend_name,
+                error="Mock: simulated permission denied (requires root)",
+            )
         if self._config.simulate_failures and self._write_count % 3 == 2:
             return WriteResult(
                 success=False,
@@ -406,6 +414,14 @@ class MockFanControlBackend(FanControlBackend):
         )
 
     def set_mode_max(self) -> WriteResult:
+        if self._config.simulate_permission_denied:
+            return WriteResult(
+                success=False,
+                feature=FeatureId.FAN_MODE,
+                requested_value="max",
+                backend=self.backend_name,
+                error="Mock: simulated permission denied (requires root)",
+            )
         if self._config.simulate_failures and self._write_count % 3 == 2:
             return WriteResult(
                 success=False,

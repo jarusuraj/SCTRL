@@ -1,0 +1,12 @@
+[Desktop Entry]
+Name=SCTRL
+GenericName=Laptop Control Center
+Comment=Monitor and control hardware, fan curves, performance profiles, and battery health
+Exec=sctrl-gui
+Icon=io.github.sctrl.sctrl
+Terminal=false
+Type=Application
+Categories=System;HardwareSettings;Settings;Qt;
+Keywords=acer;nitro;predator;fans;cooling;battery;profile;
+StartupWMClass=sctrl-gui
+X-GNOME-UsesNotifications=true

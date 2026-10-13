@@ -378,9 +378,24 @@ class ModelDatabase:
             return
 
         seen_products: dict[str, str] = {}  # product_name -> filename
+        resolved_base = directory.resolve()
 
         for toml_path in sorted(directory.glob("*.toml")):
             if toml_path.name == "schema.toml":
+                continue
+
+            # Symlink escape / path traversal check
+            try:
+                resolved_file = toml_path.resolve()
+                if not resolved_file.is_relative_to(resolved_base):
+                    msg = f"Security: symlink escape detected for {toml_path.name} -> {resolved_file}. Skipping."
+                    logger.warning(msg)
+                    self._load_errors.append(msg)
+                    continue
+            except (ValueError, RuntimeError) as sec_exc:
+                msg = f"Security: path escape for {toml_path}: {sec_exc}"
+                logger.warning(msg)
+                self._load_errors.append(msg)
                 continue
 
             try:
