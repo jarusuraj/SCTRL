@@ -46,3 +46,17 @@ def test_cli_mock_diagnostics(capsys: pytest.CaptureFixture[str]) -> None:
     captured = capsys.readouterr()
     assert '"tier":' in captured.out
     assert '"capabilities":' in captured.out
+
+
+def test_cli_report_model(capsys: pytest.CaptureFixture[str], tmp_path: Path) -> None:
+    out_file = tmp_path / "model_report.json"
+    test_args = ["sctrl", "--mock", "report-model", "--output", str(out_file)]
+    with patch.object(sys, "argv", test_args):
+        main()
+
+    assert out_file.exists()
+    content = out_file.read_text(encoding="utf-8")
+    assert '"report_type": "sctrl_hardware_model_report"' in content
+    assert '"serial_number": "[REDACTED]"' in content
+    assert '"uuid": "[REDACTED]"' in content
+

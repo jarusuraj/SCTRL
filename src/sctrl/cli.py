@@ -81,6 +81,10 @@ def main() -> None:
     # diagnostics
     subparsers.add_parser("diagnostics", help="Generate and print diagnostic report")
 
+    # report-model (Redacted, local only, zero network)
+    report_parser = subparsers.add_parser("report-model", help="Generate redacted model report (local file or stdout, zero network)")
+    report_parser.add_argument("--output", "-o", help="Output file path (default: stdout)")
+
     args = parser.parse_args()
 
     from daemon.service import SCTRLService
@@ -127,7 +131,46 @@ def main() -> None:
     elif args.command == "diagnostics":
         diag = service.get_diagnostics().to_dict()
         print(json.dumps(diag, indent=2))
+    elif args.command == "report-model":
+        diag = service.get_diagnostics().to_dict()
+        dmi = diag.get("dmi", {})
+        redacted_dmi = {
+            "product_name": dmi.get("product_name", "Unknown"),
+            "board_name": dmi.get("board_name", "Unknown"),
+            "vendor": dmi.get("vendor", "Unknown"),
+            "bios_version": dmi.get("bios_version", "Unknown"),
+            "bios_date": dmi.get("bios_date", "Unknown"),
+            "serial_number": "[REDACTED]",
+            "uuid": "[REDACTED]",
+            "chassis_type": dmi.get("chassis_type", "Unknown"),
+        }
+        report = {
+            "report_type": "sctrl_hardware_model_report",
+            "notice": "Redacted local dump for contributing hardware model profiles. Zero network transmission.",
+            "dmi": redacted_dmi,
+            "tier": diag.get("tier"),
+            "tier_reason": diag.get("tier_reason"),
+            "active_drivers": diag.get("active_drivers", []),
+            "capabilities": [
+                {
+                    "feature_id": c.get("feature_id"),
+                    "status": c.get("status"),
+                    "interface": c.get("interface"),
+                    "readable": c.get("readable"),
+                    "writable": c.get("writable"),
+                }
+                for c in diag.get("capabilities", [])
+            ],
+        }
+        report_str = json.dumps(report, indent=2)
+        if args.output:
+            out_path = Path(args.output)
+            out_path.write_text(report_str, encoding="utf-8")
+            print(f"Redacted model report written to {out_path}")
+        else:
+            print(report_str)
 
 
 if __name__ == "__main__":
     main()
+
