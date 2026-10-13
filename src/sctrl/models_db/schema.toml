@@ -1,0 +1,185 @@
+# SCTRL Model Profile Schema
+# This file defines the expected structure of per-model TOML profiles.
+# Every field listed here is validated by the model_db loader.
+# A profile that violates this schema is skipped and logged.
+
+[schema]
+version = 1
+
+[schema.fields]
+
+[schema.fields.identity]
+description = "DMI identification for exact model matching"
+required = true
+
+[schema.fields.identity.product_names]
+type = "list[str]"
+description = "Exact DMI product_name values that match this profile"
+required = true
+min_items = 1
+
+[schema.fields.identity.vendor]
+type = "str"
+description = "Expected DMI vendor string"
+required = true
+
+[schema.fields.identity.board_names]
+type = "list[str]"
+description = "Exact DMI board_name values, if needed for disambiguation"
+required = false
+
+[schema.fields.drivers]
+description = "Expected kernel drivers and interfaces"
+required = true
+
+[schema.fields.drivers.primary]
+type = "str"
+description = "Primary driver name (e.g., 'acer-wmi')"
+required = true
+
+[schema.fields.drivers.optional]
+type = "list[str]"
+description = "Optional supplementary drivers"
+required = false
+
+[schema.fields.fans]
+description = "Fan control metadata"
+required = false
+
+[schema.fields.fans.count]
+type = "int"
+description = "Number of independently controllable fans"
+required = false
+min = 1
+max = 4
+
+[schema.fields.fans.min_speed_percent]
+type = "int"
+description = "Minimum safe fan speed percentage (evidence-based)"
+required = false
+min = 0
+max = 100
+
+[schema.fields.fans.max_speed_percent]
+type = "int"
+description = "Maximum fan speed percentage"
+required = false
+min = 1
+max = 100
+
+[schema.fields.fans.modes]
+type = "list[str]"
+description = "Supported fan modes"
+required = false
+
+[schema.fields.keyboard]
+description = "Keyboard lighting metadata"
+required = false
+
+[schema.fields.keyboard.zones]
+type = "int"
+description = "Number of independent RGB zones"
+required = false
+min = 0
+max = 8
+
+[schema.fields.keyboard.effects]
+type = "list[str]"
+description = "Supported lighting effects"
+required = false
+
+[schema.fields.battery]
+description = "Battery and charge control metadata"
+required = false
+
+[schema.fields.battery.charge_limit_supported]
+type = "bool"
+description = "Whether charge limit control is available"
+required = false
+
+[schema.fields.battery.charge_limit_range]
+type = "list[int]"
+description = "Min and max charge limit percentages"
+required = false
+
+[schema.fields.thermal]
+description = "Thermal thresholds from evidence"
+required = false
+
+[schema.fields.thermal.cpu_warn_c]
+type = "int"
+description = "CPU warning temperature threshold"
+required = false
+
+[schema.fields.thermal.cpu_critical_c]
+type = "int"
+description = "CPU critical temperature threshold"
+required = false
+
+[schema.fields.thermal.gpu_warn_c]
+type = "int"
+description = "GPU warning temperature threshold"
+required = false
+
+[schema.fields.thermal.gpu_critical_c]
+type = "int"
+description = "GPU critical temperature threshold"
+required = false
+
+[schema.fields.profiles]
+description = "Performance profile mapping"
+required = false
+
+[schema.fields.profiles.mapping]
+type = "table"
+description = "Maps logical profile names to driver-specific values"
+required = false
+
+[schema.fields.quirks]
+description = "Model-specific quirks and workarounds"
+required = false
+type = "table"
+
+[schema.fields.verification]
+description = "Physical verification evidence"
+required = true
+
+[schema.fields.verification.tester]
+type = "str"
+description = "Name or handle of the person who verified"
+required = true
+
+[schema.fields.verification.date]
+type = "str"
+description = "Date of verification (YYYY-MM-DD)"
+required = true
+
+[schema.fields.verification.kernel_version]
+type = "str"
+description = "Kernel version used during verification"
+required = true
+
+[schema.fields.verification.bios_version]
+type = "str"
+description = "BIOS version of the verified unit"
+required = true
+
+[schema.fields.verification.bios_family]
+type = "str"
+description = "BIOS family prefix for version matching"
+required = false
+
+[schema.fields.verification.features_verified]
+type = "list[str]"
+description = "List of features physically confirmed working"
+required = true
+
+[schema.fields.verification.features_unverified]
+type = "list[str]"
+description = "Features present but not physically tested"
+required = false
+
+[schema.fields.verification.notes]
+type = "str"
+description = "Free-form verification notes"
+required = false

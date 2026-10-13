@@ -1,0 +1,70 @@
+# Acer Predator Helios Neo 16 PHN16-72
+# Reference development machine. This is the only model with potential
+# direct physical access for verification.
+#
+# IMPORTANT: Features listed as verified MUST have been physically tested.
+# Features listed as unverified are based on documentation or expected
+# driver support, not physical confirmation.
+
+[identity]
+product_names = ["PHN16-72"]
+vendor = "Acer"
+board_names = ["Covini_PH16-72"]
+
+[drivers]
+primary = "acer-wmi"
+optional = ["linuwu-sense"]
+
+[fans]
+count = 2
+min_speed_percent = 25
+max_speed_percent = 100
+modes = ["auto", "max", "custom"]
+
+[keyboard]
+zones = 4
+effects = ["static", "breathing", "off"]
+
+[battery]
+charge_limit_supported = true
+charge_limit_range = [50, 100]
+
+[thermal]
+cpu_warn_c = 90
+cpu_critical_c = 100
+gpu_warn_c = 85
+gpu_critical_c = 95
+
+[profiles]
+[profiles.mapping]
+quiet = "low-power"
+balanced = "balanced"
+performance = "performance"
+turbo = "turbo"
+
+[quirks]
+# Document model-specific workarounds here.
+# Example: fan_readback_delay_ms = 100
+notes = "Reference machine. No known quirks documented yet."
+
+[verification]
+tester = "unverified"
+date = "2024-01-01"
+kernel_version = "unknown"
+bios_version = "unknown"
+bios_family = "V1."
+features_verified = []
+features_unverified = [
+    "cpu_temp",
+    "gpu_temp",
+    "cpu_fan_rpm",
+    "gpu_fan_rpm",
+    "fan_mode",
+    "fan_curve",
+    "performance_profile",
+    "charge_limit",
+    "keyboard_brightness",
+    "keyboard_rgb",
+    "keyboard_effect",
+]
+notes = "Profile created from documentation and expected driver capabilities. No features have been physically verified yet. All features default to community tier until physical testing is completed."
