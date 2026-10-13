@@ -78,63 +78,68 @@ class AcerKeyboardBackend(KeyboardBackend):
         return self._current_brightness
 
     def set_brightness(self, level: int) -> WriteResult:
-        self._current_brightness = level
-        if self._brightness_file and self._brightness_file.exists():
-            try:
-                scaled = int((level / 100.0) * self._max_brightness)
-                self._brightness_file.write_text(str(scaled))
-            except Exception as e:
-                return WriteResult(
-                    success=False,
-                    feature=FeatureId.KEYBOARD_BRIGHTNESS,
-                    requested_value=level,
-                    backend=self.backend_name,
-                    error=str(e),
-                )
-        return WriteResult(
-            success=True,
-            feature=FeatureId.KEYBOARD_BRIGHTNESS,
-            requested_value=level,
-            actual_value=level,
-            verified=True,
-            backend=self.backend_name,
-        )
-
-    def get_zone_count(self) -> int:
-        return 4
-
-    def get_zone_color(self, zone_id: int) -> RGBColor | None:
-        return self._zones.get(zone_id)
-
-    def set_zone_color(self, zone_id: int, color: RGBColor) -> WriteResult:
-        if zone_id not in self._zones:
+        if not self._brightness_file or not self._brightness_file.exists():
             return WriteResult(
                 success=False,
-                feature=FeatureId.KEYBOARD_RGB,
-                requested_value=color.to_hex(),
+                feature=FeatureId.KEYBOARD_BRIGHTNESS,
+                requested_value=level,
+                verified=False,
                 backend=self.backend_name,
-                error=f"Invalid zone {zone_id}",
+                error="Keyboard backlight sysfs file does not exist",
             )
-        self._zones[zone_id] = color
+        try:
+            scaled = int((level / 100.0) * self._max_brightness)
+            self._brightness_file.write_text(str(scaled))
+            # Read-back verification
+            actual = self.get_brightness()
+            verified = (actual == level)
+            if verified:
+                self._current_brightness = actual
+            return WriteResult(
+                success=verified,
+                feature=FeatureId.KEYBOARD_BRIGHTNESS,
+                requested_value=level,
+                actual_value=actual,
+                verified=verified,
+                backend=self.backend_name,
+                error="" if verified else f"Readback mismatch: wrote {level}%, got {actual}%",
+            )
+        except Exception as e:
+            return WriteResult(
+                success=False,
+                feature=FeatureId.KEYBOARD_BRIGHTNESS,
+                requested_value=level,
+                verified=False,
+                backend=self.backend_name,
+                error=str(e),
+            )
+
+    def get_zone_count(self) -> int:
+        return 0
+
+    def get_zone_color(self, zone_id: int) -> RGBColor | None:
+        return None
+
+    def set_zone_color(self, zone_id: int, color: RGBColor) -> WriteResult:
         return WriteResult(
-            success=True,
+            success=False,
             feature=FeatureId.KEYBOARD_RGB,
             requested_value=color.to_hex(),
-            actual_value=color.to_hex(),
-            verified=True,
+            verified=False,
             backend=self.backend_name,
+            error="Generic sysfs led backend does not support multi-zone RGB. Requires linuwu-sense.",
         )
 
     def set_effect(self, effect: KeyboardEffect, speed: int = 50) -> WriteResult:
-        self._current_effect = effect
         return WriteResult(
-            success=True,
+            success=False,
             feature=FeatureId.KEYBOARD_EFFECT,
             requested_value=effect.value,
-            actual_value=effect.value,
-            verified=True,
+            verified=False,
             backend=self.backend_name,
+            error="Generic sysfs led backend does not support lighting effects. Requires linuwu-sense.",
         )
 
     def get_supported_effects(self) -> list[KeyboardEffect]:
-        return [KeyboardEffect.STATIC, KeyboardEffect.BREATHING, KeyboardEffect.OFF]
+        return []
+

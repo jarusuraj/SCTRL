@@ -16,6 +16,7 @@ def validate_fan_curve(
     max_speed: int = 100,
     min_temp: int = 0,
     max_temp: int = 120,
+    allow_zero_fan: bool = False,
 ) -> list[str]:
     """Validate a fan curve and return a list of error messages.
 
@@ -25,6 +26,7 @@ def validate_fan_curve(
     - At least two points.
     - Temperatures monotonically increasing.
     - Speeds non-decreasing.
+    - Speeds cannot be 0% unless allow_zero_fan is True (verified by model profile).
     - All values within bounds.
     - Hysteresis non-negative and less than smallest temperature gap.
     - Min dwell time non-negative.
@@ -34,6 +36,20 @@ def validate_fan_curve(
     if len(curve.points) < 2:
         errors.append(f"Fan curve requires at least 2 points, got {len(curve.points)}")
         return errors  # No point checking further
+
+    # Zero fan safety check
+    if not allow_zero_fan:
+        if curve.below_first_speed <= 0:
+            errors.append(
+                f"below_first_speed cannot be {curve.below_first_speed}%: zero-RPM is disabled "
+                "unless the model profile explicitly proves zero-RPM cooling is safe"
+            )
+        for i, pt in enumerate(curve.points):
+            if pt.speed_percent <= 0:
+                errors.append(
+                    f"Point {i}: speed cannot be {pt.speed_percent}% at {pt.temp_c}C: zero-RPM is disabled "
+                    "unless the model profile explicitly proves zero-RPM cooling is safe"
+                )
 
     # Check bounds
     for i, pt in enumerate(curve.points):
@@ -108,9 +124,10 @@ def validate_fan_curve_strict(
     max_speed: int = 100,
     min_temp: int = 0,
     max_temp: int = 120,
+    allow_zero_fan: bool = False,
 ) -> None:
     """Validate and raise ValidationError if invalid."""
-    errors = validate_fan_curve(curve, min_speed, max_speed, min_temp, max_temp)
+    errors = validate_fan_curve(curve, min_speed, max_speed, min_temp, max_temp, allow_zero_fan=allow_zero_fan)
     if errors:
         raise ValidationError(
             f"Invalid fan curve: {'; '.join(errors)}",

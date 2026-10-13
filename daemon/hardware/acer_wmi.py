@@ -1,9 +1,9 @@
-"""Acer WMI and ACPI platform profile backend for SCTRL.
+"""Acer ACPI platform profile and hardware interface for SCTRL.
 
-Supports:
-- ACPI platform_profile (/sys/firmware/acpi/platform_profile)
-- Acer WMI platform device (/sys/devices/platform/acer-wmi/)
-- Gaming profile selection and fan mode switching
+Standard Linux ACPI platform_profile (/sys/firmware/acpi/platform_profile)
+provides kernel-native performance profile switching without custom kernel patches.
+No invented sysfs paths are used. If custom fan nodes are not present,
+capabilities report FeatureStatus.DRIVER_MISSING and no writes occur.
 """
 
 from __future__ import annotations
@@ -12,7 +12,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from sctrl.constants import SYSFS_ACER_WMI, SYSFS_PLATFORM_PROFILE
+from sctrl.constants import SYSFS_PLATFORM_PROFILE
 from sctrl.models import (
     CapabilityRecord,
     FanMode,
@@ -56,12 +56,21 @@ class PlatformProfileBackend(ProfileBackend):
                 supported_values=choices,
                 current_value=self.get_current_profile(),
             ))
+        else:
+            records.append(CapabilityRecord(
+                feature_id=FeatureId.PERFORMANCE_PROFILE,
+                status=FeatureStatus.DRIVER_MISSING,
+                interface=str(self._profile_file),
+                readable=False,
+                writable=False,
+                last_error="ACPI platform_profile interface not found",
+            ))
         return records
 
     def get_current_profile(self) -> str:
         if not self._profile_file.exists():
             return ""
-        try:        
+        try:
             return self._profile_file.read_text().strip()
         except Exception as e:
             logger.debug("Failed reading platform_profile: %s", e)
@@ -87,15 +96,16 @@ class PlatformProfileBackend(ProfileBackend):
             )
         try:
             self._profile_file.write_text(profile_value)
-            actual = self.get_current_profile()
-            verified = (actual.lower() == profile_value.lower())
+            readback = self.get_current_profile()
+            verified = (readback.lower() == profile_value.lower())
             return WriteResult(
-                success=True,
+                success=verified,
                 feature=FeatureId.PERFORMANCE_PROFILE,
                 requested_value=profile_value,
-                actual_value=actual,
+                actual_value=readback,
                 verified=verified,
                 backend=self.backend_name,
+                error="" if verified else f"Verification mismatch: expected '{profile_value}', got '{readback}'",
             )
         except Exception as e:
             return WriteResult(
@@ -108,13 +118,13 @@ class PlatformProfileBackend(ProfileBackend):
 
 
 class AcerWmiFanBackend(FanControlBackend):
-    """Controls fans via Acer WMI or compatible kernel driver."""
+    """Stub fan backend for standard upstream acer-wmi (which lacks custom fan nodes).
 
-    def __init__(self, wmi_dir: str | Path = SYSFS_ACER_WMI) -> None:
-        self._dir = Path(wmi_dir)
-        self._mode_file = self._dir / "fan_mode"
-        self._cpu_speed_file = self._dir / "cpu_fan_speed"
-        self._gpu_speed_file = self._dir / "gpu_fan_speed"
+    Does NOT invent fake sysfs paths. If a genuine fan interface is not discovered,
+    probes report FeatureStatus.DRIVER_MISSING and zero writes occur.
+    """
+
+    def __init__(self) -> None:
         self._current_mode = FanMode.AUTO
 
     @property
@@ -122,93 +132,54 @@ class AcerWmiFanBackend(FanControlBackend):
         return "acer_wmi"
 
     def probe(self) -> list[CapabilityRecord]:
-        records: list[CapabilityRecord] = []
-        if self._mode_file.exists():
-            records.append(CapabilityRecord(
+        return [
+            CapabilityRecord(
                 feature_id=FeatureId.FAN_MODE,
-                status=FeatureStatus.SUPPORTED,
-                interface=str(self._mode_file),
-                readable=True,
-                writable=True,
-                supported_values=["auto", "max", "custom"],
-            ))
-        return records
+                status=FeatureStatus.DRIVER_MISSING,
+                interface="",
+                readable=False,
+                writable=False,
+                last_error="Standard acer-wmi driver lacks custom fan sysfs interface. Requires linuwu-sense.",
+            ),
+            CapabilityRecord(
+                feature_id=FeatureId.FAN_CURVE,
+                status=FeatureStatus.DRIVER_MISSING,
+                interface="",
+                readable=False,
+                writable=False,
+                last_error="Custom fan curve not supported by stock acer-wmi driver.",
+            ),
+        ]
 
     def get_current_mode(self) -> FanMode:
         return self._current_mode
 
     def set_mode_auto(self) -> WriteResult:
-        self._current_mode = FanMode.AUTO
-        if self._mode_file.exists():
-            try:
-                self._mode_file.write_text("auto")
-            except Exception as e:
-                return WriteResult(
-                    success=False,
-                    feature=FeatureId.FAN_MODE,
-                    requested_value="auto",
-                    backend=self.backend_name,
-                    error=str(e),
-                )
         return WriteResult(
-            success=True,
+            success=False,
             feature=FeatureId.FAN_MODE,
             requested_value="auto",
-            actual_value="auto",
-            verified=True,
             backend=self.backend_name,
+            error="Stock acer-wmi driver lacks fan control interface. No write performed.",
         )
 
     def set_mode_max(self) -> WriteResult:
-        self._current_mode = FanMode.MAX
-        if self._mode_file.exists():
-            try:
-                self._mode_file.write_text("max")
-            except Exception as e:
-                return WriteResult(
-                    success=False,
-                    feature=FeatureId.FAN_MODE,
-                    requested_value="max",
-                    backend=self.backend_name,
-                    error=str(e),
-                )
         return WriteResult(
-            success=True,
+            success=False,
             feature=FeatureId.FAN_MODE,
             requested_value="max",
-            actual_value="max",
-            verified=True,
             backend=self.backend_name,
+            error="Stock acer-wmi driver lacks fan control interface. No write performed.",
         )
 
     def set_fan_speed(self, fan: str, speed_percent: int) -> WriteResult:
-        target_file = self._cpu_speed_file if fan == "cpu" else self._gpu_speed_file
-        if not target_file.exists():
-            return WriteResult(
-                success=False,
-                feature=FeatureId.FAN_CURVE,
-                requested_value=speed_percent,
-                backend=self.backend_name,
-                error=f"Fan speed control file {target_file} not found",
-            )
-        try:
-            target_file.write_text(str(speed_percent))
-            return WriteResult(
-                success=True,
-                feature=FeatureId.FAN_CURVE,
-                requested_value=speed_percent,
-                actual_value=speed_percent,
-                verified=True,
-                backend=self.backend_name,
-            )
-        except Exception as e:
-            return WriteResult(
-                success=False,
-                feature=FeatureId.FAN_CURVE,
-                requested_value=speed_percent,
-                backend=self.backend_name,
-                error=str(e),
-            )
+        return WriteResult(
+            success=False,
+            feature=FeatureId.FAN_CURVE,
+            requested_value=speed_percent,
+            backend=self.backend_name,
+            error="Stock acer-wmi driver lacks fan control interface. No write performed.",
+        )
 
     def get_supported_range(self, fan: str) -> tuple[int, int]:
         return (0, 100)

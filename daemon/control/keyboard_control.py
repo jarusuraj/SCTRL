@@ -60,6 +60,7 @@ class KeyboardController:
 
     def set_brightness(self, level: int) -> WriteResult:
         """Set keyboard backlight brightness (0-100)."""
+        self._registry.check_write_permission(FeatureId.KEYBOARD_BRIGHTNESS)
         if not self.is_brightness_supported:
             raise UnsupportedError("Keyboard brightness control is not supported on this system")
 
@@ -88,6 +89,7 @@ class KeyboardController:
 
     def set_zone_color(self, zone_id: int, color: RGBColor) -> WriteResult:
         """Set RGB color for a specific zone (0-indexed)."""
+        self._registry.check_write_permission(FeatureId.KEYBOARD_RGB)
         if not self.is_rgb_supported:
             raise UnsupportedError("Keyboard RGB control is not supported on this system")
 
@@ -114,6 +116,7 @@ class KeyboardController:
 
     def set_effect(self, effect: KeyboardEffect, speed: int = 50) -> WriteResult:
         """Set keyboard animation effect and speed (0-100)."""
+        self._registry.check_write_permission(FeatureId.KEYBOARD_EFFECT)
         if not self.is_rgb_supported:
             raise UnsupportedError("Keyboard effects are not supported on this system")
 

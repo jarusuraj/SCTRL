@@ -1,0 +1,31 @@
+# Hardware dump for Acer Predator Helios Neo 16 (PHN16-72)
+# Collected on Linux 6.8.0-generic
+
+[dmi]
+sys_vendor = "Acer"
+product_name = "PHN16-72"
+board_name = "Covini_PH16-72"
+bios_version = "V1.06"
+bios_date = "06/15/2024"
+chassis_type = "10"
+
+[sysfs_platform_profile]
+path = "/sys/firmware/acpi/platform_profile"
+choices_path = "/sys/firmware/acpi/platform_profile_choices"
+choices = "low-power balanced performance"
+
+[linuwu_sense]
+base_dir = "/sys/devices/platform/linuwu-sense"
+# Exact node names exposed by linuwu-sense driver on PHN16-72:
+node_fan_mode = "fan_mode"
+node_cpu_fan_speed = "cpu_fan_speed"
+node_gpu_fan_speed = "gpu_fan_speed"
+node_profile = "platform_profile"
+node_rgb_mode = "rgb_mode"
+node_rgb_brightness = "rgb_brightness"
+
+[power_supply]
+path = "/sys/class/power_supply/BAT1"
+threshold_path = "/sys/class/power_supply/BAT1/charge_control_end_threshold"
+capacity_path = "/sys/class/power_supply/BAT1/capacity"
+status_path = "/sys/class/power_supply/BAT1/status"

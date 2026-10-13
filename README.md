@@ -3,7 +3,7 @@
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 [![Python: 3.12+](https://img.shields.io/badge/Python-3.12%2B-brightgreen.svg)](pyproject.toml)
 
-**SCTRL** is an original, production-quality Linux laptop monitoring and control center designed for supported Acer Nitro and Predator laptops. It provides power-users with fan curve customization, performance profile switching, 80% battery health protection, multi-zone RGB lighting, and hardware telemetry without relying on proprietary utilities or waking suspended discrete GPUs.
+**SCTRL** is an original Linux laptop monitoring and control center designed for supported Acer Nitro and Predator laptops. It provides power-users with fan curve customization, performance profile switching, 80% battery health protection, multi-zone RGB lighting, and hardware telemetry without relying on proprietary utilities or waking suspended discrete GPUs.
 
 > **Disclaimer**: SCTRL is an unofficial, community-developed utility. It is not affiliated with, endorsed by, or supported by Acer Inc.
 
@@ -72,8 +72,9 @@ Every device is dynamically classified at boot into one of four support tiers:
 
 ```bash
 # Clone the repository
-git clone https://github.com/sctrl/sctrl.git
-cd sctrl
+git clone https://github.com/jarusuraj/SCTRL.git
+cd SCTRL
+
 
 # Initialize Python virtual environment
 python -m venv .venv

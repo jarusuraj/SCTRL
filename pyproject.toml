@@ -17,7 +17,6 @@ classifiers = [
     "Development Status :: 3 - Alpha",
     "Environment :: X11 Applications :: Qt",
     "Intended Audience :: End Users/Desktop",
-    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
     "Operating System :: POSIX :: Linux",
     "Programming Language :: Python :: 3.12",
     "Topic :: System :: Hardware",
@@ -47,9 +46,9 @@ sctrld = "daemon.main:main"
 sctrl-gui = "gui.main:main"
 
 [project.urls]
-Homepage = "https://github.com/sctrl/sctrl"
-Repository = "https://github.com/sctrl/sctrl"
-Issues = "https://github.com/sctrl/sctrl/issues"
+Homepage = "https://github.com/jarusuraj/SCTRL"
+Repository = "https://github.com/jarusuraj/SCTRL"
+Issues = "https://github.com/jarusuraj/SCTRL/issues"
 
 [tool.setuptools.packages.find]
 where = ["src", "."]

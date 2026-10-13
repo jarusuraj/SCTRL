@@ -1,14 +1,15 @@
 """Linuwu-sense driver backend for SCTRL.
 
 Supports the community linuwu-sense kernel module for Acer Predator and Nitro laptops.
-All sysfs node names and paths are discovered at runtime from the system or
-resolved through the active model profile, NEVER hardcoded.
+All node names MUST be resolved from exact names listed in the model profile (quirks)
+and verified against docs/hw-dump.txt.
+No substring or fuzzy guessing is permitted.
+An unconfigured or missing node results in FeatureStatus.DRIVER_MISSING and no writes.
 """
 
 from __future__ import annotations
 
 import logging
-import os
 from pathlib import Path
 from typing import Any
 
@@ -27,20 +28,12 @@ from daemon.hardware.base import (
 
 logger = logging.getLogger("sctrld.linuwu_sense")
 
-# Potential search locations for linuwu-sense platform driver
-DEFAULT_PLATFORM_SEARCH_PATHS = [
-    Path("/sys/devices/platform"),
-    Path("/sys/bus/platform/devices"),
-    Path("/sys/class/hwmon"),
-]
+# Standard sysfs platform device path for linuwu-sense
+DEFAULT_LINUWU_SYSFS_DIR = Path("/sys/devices/platform/linuwu-sense")
 
 
 class LinuwuSenseBackend(FanControlBackend, ProfileBackend):
-    """Interacts with linuwu-sense driver with dynamic node discovery.
-
-    Discovers sysfs nodes dynamically by inspecting directory contents and
-    matching capabilities against model profile hints rather than hardcoding paths.
-    """
+    """Interacts with linuwu-sense driver using exact profile node definitions."""
 
     def __init__(
         self,
@@ -48,16 +41,15 @@ class LinuwuSenseBackend(FanControlBackend, ProfileBackend):
         model_profile: ModelProfile | None = None,
     ) -> None:
         self._model_profile = model_profile
-        self._base_dir: Path | None = Path(base_dir) if base_dir else None
+        self._base_dir = Path(base_dir) if base_dir else self._resolve_base_dir()
 
-        # Dynamically discovered node paths
         self._mode_file: Path | None = None
         self._cpu_speed_file: Path | None = None
         self._gpu_speed_file: Path | None = None
         self._profile_file: Path | None = None
         self._current_mode = FanMode.AUTO
 
-        self._discover_nodes()
+        self._resolve_nodes()
 
     @property
     def backend_name(self) -> str:
@@ -67,83 +59,55 @@ class LinuwuSenseBackend(FanControlBackend, ProfileBackend):
     def is_available(self) -> bool:
         return self._base_dir is not None and self._base_dir.exists()
 
-    def _discover_nodes(self) -> None:
-        """Dynamically locate the driver directory and control nodes."""
-        # 1. Discover base directory if not explicitly provided
-        if not self._base_dir or not self._base_dir.exists():
-            self._base_dir = self._find_driver_base()
+    def _resolve_base_dir(self) -> Path | None:
+        quirks = self._model_profile.quirks if self._model_profile else {}
+        custom_base = quirks.get("linuwu_base_dir")
+        if custom_base:
+            p = Path(custom_base)
+            if p.exists():
+                return p
+        if DEFAULT_LINUWU_SYSFS_DIR.exists():
+            return DEFAULT_LINUWU_SYSFS_DIR
+        return None
 
+    def _resolve_nodes(self) -> None:
+        """Resolve nodes strictly using exact names from model profile quirks."""
         if not self._base_dir or not self._base_dir.exists():
-            logger.debug("linuwu-sense driver directory not found")
             return
 
-        logger.info("Discovered linuwu-sense platform at %s", self._base_dir)
-
-        # 2. Check model profile quirks for node overrides if defined
         quirks = self._model_profile.quirks if self._model_profile else {}
-        custom_mode_node = quirks.get("linuwu_fan_mode_node")
-        custom_cpu_node = quirks.get("linuwu_cpu_speed_node")
-        custom_gpu_node = quirks.get("linuwu_gpu_speed_node")
-        custom_prof_node = quirks.get("linuwu_profile_node")
 
-        if custom_mode_node and (self._base_dir / custom_mode_node).exists():
-            self._mode_file = self._base_dir / custom_mode_node
-        if custom_cpu_node and (self._base_dir / custom_cpu_node).exists():
-            self._cpu_speed_file = self._base_dir / custom_cpu_node
-        if custom_gpu_node and (self._base_dir / custom_gpu_node).exists():
-            self._gpu_speed_file = self._base_dir / custom_gpu_node
-        if custom_prof_node and (self._base_dir / custom_prof_node).exists():
-            self._profile_file = self._base_dir / custom_prof_node
+        mode_name = quirks.get("linuwu_fan_mode_node")
+        cpu_name = quirks.get("linuwu_cpu_speed_node")
+        gpu_name = quirks.get("linuwu_gpu_speed_node")
+        prof_name = quirks.get("linuwu_profile_node")
 
-        # 3. Dynamic discovery by directory traversal and attribute inspection
-        try:
-            for entry in self._base_dir.iterdir():
-                name = entry.name.lower()
-                # Fan mode node
-                if not self._mode_file and ("fan_mode" in name or "fanmode" in name or "cooling_mode" in name):
-                    self._mode_file = entry
-                # CPU fan speed
-                elif not self._cpu_speed_file and (("cpu" in name and "speed" in name) or ("fan" in name and "1" in name and "speed" in name)):
-                    self._cpu_speed_file = entry
-                # GPU fan speed
-                elif not self._gpu_speed_file and (("gpu" in name and "speed" in name) or ("fan" in name and "2" in name and "speed" in name)):
-                    self._gpu_speed_file = entry
-                # Performance profile
-                elif not self._profile_file and ("profile" in name or "perf_mode" in name):
-                    self._profile_file = entry
-        except Exception as e:
-            logger.warning("Error during dynamic linuwu-sense node discovery: %s", e)
+        if mode_name:
+            target = self._base_dir / mode_name
+            if target.exists():
+                self._mode_file = target
 
-    def _find_driver_base(self) -> Path | None:
-        """Scan system search paths for linuwu-sense directory."""
-        for root in DEFAULT_PLATFORM_SEARCH_PATHS:
-            if not root.exists():
-                continue
-            try:
-                for candidate in root.iterdir():
-                    c_name = candidate.name.lower()
-                    if "linuwu" in c_name or "predator" in c_name:
-                        return candidate
-                    # Check hwmon device name attribute
-                    if candidate.name.startswith("hwmon"):
-                        name_file = candidate / "name"
-                        if name_file.exists():
-                            try:
-                                if "linuwu" in name_file.read_text().lower():
-                                    return candidate
-                            except Exception:
-                                pass
-            except Exception:
-                pass
-        return None
+        if cpu_name:
+            target = self._base_dir / cpu_name
+            if target.exists():
+                self._cpu_speed_file = target
+
+        if gpu_name:
+            target = self._base_dir / gpu_name
+            if target.exists():
+                self._gpu_speed_file = target
+
+        if prof_name:
+            target = self._base_dir / prof_name
+            if target.exists():
+                self._profile_file = target
 
     # --- FanControlBackend interface ---
 
     def probe(self) -> list[CapabilityRecord]:
         records: list[CapabilityRecord] = []
-        if not self.is_available:
-            return records
 
+        # 1. Fan mode capability
         if self._mode_file and self._mode_file.exists():
             records.append(CapabilityRecord(
                 feature_id=FeatureId.FAN_MODE,
@@ -153,10 +117,22 @@ class LinuwuSenseBackend(FanControlBackend, ProfileBackend):
                 writable=True,
                 supported_values=["auto", "max", "custom"],
                 current_value=self._current_mode.value,
-                confidence="runtime_discovered",
+                confidence="profile_verified",
+            ))
+        else:
+            records.append(CapabilityRecord(
+                feature_id=FeatureId.FAN_MODE,
+                status=FeatureStatus.DRIVER_MISSING,
+                interface="",
+                readable=False,
+                writable=False,
+                last_error="linuwu-sense fan_mode node not resolved or file missing",
             ))
 
-        if self._cpu_speed_file or self._gpu_speed_file:
+        # 2. Fan speed / curve capability
+        if (self._cpu_speed_file and self._cpu_speed_file.exists()) or (
+            self._gpu_speed_file and self._gpu_speed_file.exists()
+        ):
             target_iface = str(self._cpu_speed_file or self._gpu_speed_file)
             min_spd = self._model_profile.fans.min_speed_percent if self._model_profile else 0
             max_spd = self._model_profile.fans.max_speed_percent if self._model_profile else 100
@@ -167,9 +143,19 @@ class LinuwuSenseBackend(FanControlBackend, ProfileBackend):
                 readable=True,
                 writable=True,
                 supported_range=(min_spd, max_spd),
-                confidence="runtime_discovered",
+                confidence="profile_verified",
+            ))
+        else:
+            records.append(CapabilityRecord(
+                feature_id=FeatureId.FAN_CURVE,
+                status=FeatureStatus.DRIVER_MISSING,
+                interface="",
+                readable=False,
+                writable=False,
+                last_error="linuwu-sense fan speed nodes not resolved or file missing",
             ))
 
+        # 3. Performance profile capability
         if self._profile_file and self._profile_file.exists():
             records.append(CapabilityRecord(
                 feature_id=FeatureId.PERFORMANCE_PROFILE,
@@ -179,7 +165,16 @@ class LinuwuSenseBackend(FanControlBackend, ProfileBackend):
                 writable=True,
                 supported_values=self.get_available_profiles(),
                 current_value=self.get_current_profile(),
-                confidence="runtime_discovered",
+                confidence="profile_verified",
+            ))
+        else:
+            records.append(CapabilityRecord(
+                feature_id=FeatureId.PERFORMANCE_PROFILE,
+                status=FeatureStatus.DRIVER_MISSING,
+                interface="",
+                readable=False,
+                writable=False,
+                last_error="linuwu-sense platform_profile node not resolved or file missing",
             ))
 
         return records
@@ -188,48 +183,72 @@ class LinuwuSenseBackend(FanControlBackend, ProfileBackend):
         return self._current_mode
 
     def set_mode_auto(self) -> WriteResult:
-        self._current_mode = FanMode.AUTO
-        if self._mode_file and self._mode_file.exists():
-            try:
-                self._mode_file.write_text("auto")
-            except Exception as e:
-                return WriteResult(
-                    success=False,
-                    feature=FeatureId.FAN_MODE,
-                    requested_value="auto",
-                    backend=self.backend_name,
-                    error=str(e),
-                )
-        return WriteResult(
-            success=True,
-            feature=FeatureId.FAN_MODE,
-            requested_value="auto",
-            actual_value="auto",
-            verified=True,
-            backend=self.backend_name,
-        )
+        if not self._mode_file or not self._mode_file.exists():
+            return WriteResult(
+                success=False,
+                feature=FeatureId.FAN_MODE,
+                requested_value="auto",
+                backend=self.backend_name,
+                error="fan_mode node missing",
+            )
+        try:
+            self._mode_file.write_text("auto")
+            # Read-back verification
+            readback = self._mode_file.read_text().strip().lower()
+            verified = (readback == "auto")
+            if verified:
+                self._current_mode = FanMode.AUTO
+            return WriteResult(
+                success=verified,
+                feature=FeatureId.FAN_MODE,
+                requested_value="auto",
+                actual_value=readback,
+                verified=verified,
+                backend=self.backend_name,
+                error="" if verified else f"Readback mismatch: expected 'auto', got '{readback}'",
+            )
+        except Exception as e:
+            return WriteResult(
+                success=False,
+                feature=FeatureId.FAN_MODE,
+                requested_value="auto",
+                backend=self.backend_name,
+                error=str(e),
+            )
 
     def set_mode_max(self) -> WriteResult:
-        self._current_mode = FanMode.MAX
-        if self._mode_file and self._mode_file.exists():
-            try:
-                self._mode_file.write_text("max")
-            except Exception as e:
-                return WriteResult(
-                    success=False,
-                    feature=FeatureId.FAN_MODE,
-                    requested_value="max",
-                    backend=self.backend_name,
-                    error=str(e),
-                )
-        return WriteResult(
-            success=True,
-            feature=FeatureId.FAN_MODE,
-            requested_value="max",
-            actual_value="max",
-            verified=True,
-            backend=self.backend_name,
-        )
+        if not self._mode_file or not self._mode_file.exists():
+            return WriteResult(
+                success=False,
+                feature=FeatureId.FAN_MODE,
+                requested_value="max",
+                backend=self.backend_name,
+                error="fan_mode node missing",
+            )
+        try:
+            self._mode_file.write_text("max")
+            # Read-back verification
+            readback = self._mode_file.read_text().strip().lower()
+            verified = (readback == "max")
+            if verified:
+                self._current_mode = FanMode.MAX
+            return WriteResult(
+                success=verified,
+                feature=FeatureId.FAN_MODE,
+                requested_value="max",
+                actual_value=readback,
+                verified=verified,
+                backend=self.backend_name,
+                error="" if verified else f"Readback mismatch: expected 'max', got '{readback}'",
+            )
+        except Exception as e:
+            return WriteResult(
+                success=False,
+                feature=FeatureId.FAN_MODE,
+                requested_value="max",
+                backend=self.backend_name,
+                error=str(e),
+            )
 
     def set_fan_speed(self, fan: str, speed_percent: int) -> WriteResult:
         target_file = self._cpu_speed_file if fan == "cpu" else self._gpu_speed_file
@@ -239,17 +258,27 @@ class LinuwuSenseBackend(FanControlBackend, ProfileBackend):
                 feature=FeatureId.FAN_CURVE,
                 requested_value=speed_percent,
                 backend=self.backend_name,
-                error=f"No control node discovered for {fan} fan",
+                error=f"No control node resolved for {fan} fan",
             )
         try:
             target_file.write_text(str(speed_percent))
+            # Read-back verification
+            readback_str = target_file.read_text().strip()
+            try:
+                readback_val = int(readback_str)
+                verified = (readback_val == speed_percent)
+            except ValueError:
+                verified = False
+                readback_val = None
+
             return WriteResult(
-                success=True,
+                success=verified,
                 feature=FeatureId.FAN_CURVE,
                 requested_value=speed_percent,
-                actual_value=speed_percent,
-                verified=True,
+                actual_value=readback_val,
+                verified=verified,
                 backend=self.backend_name,
+                error="" if verified else f"Readback mismatch: wrote {speed_percent}, read {readback_str}",
             )
         except Exception as e:
             return WriteResult(
@@ -287,17 +316,20 @@ class LinuwuSenseBackend(FanControlBackend, ProfileBackend):
                 feature=FeatureId.PERFORMANCE_PROFILE,
                 requested_value=profile_value,
                 backend=self.backend_name,
-                error="linuwu-sense profile node not discovered",
+                error="linuwu-sense profile node missing",
             )
         try:
             self._profile_file.write_text(profile_value)
+            readback = self._profile_file.read_text().strip()
+            verified = (readback.lower() == profile_value.lower())
             return WriteResult(
-                success=True,
+                success=verified,
                 feature=FeatureId.PERFORMANCE_PROFILE,
                 requested_value=profile_value,
-                actual_value=profile_value,
-                verified=True,
+                actual_value=readback,
+                verified=verified,
                 backend=self.backend_name,
+                error="" if verified else f"Readback mismatch: expected '{profile_value}', got '{readback}'",
             )
         except Exception as e:
             return WriteResult(

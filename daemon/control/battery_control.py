@@ -59,6 +59,8 @@ class BatteryController:
         Args:
             percent: Desired threshold (typically 80% for longevity or 100% for full charge).
         """
+        self._registry.check_write_permission(FeatureId.CHARGE_LIMIT)
+
         if not self.is_charge_limit_supported:
             raise UnsupportedError("Battery charge limit is not supported or not writable on this system")
 

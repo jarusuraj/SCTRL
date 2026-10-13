@@ -1,10 +1,5 @@
 # Acer Predator Helios Neo 16 PHN16-72
-# Reference development machine. This is the only model with potential
-# direct physical access for verification.
-#
-# IMPORTANT: Features listed as verified MUST have been physically tested.
-# Features listed as unverified are based on documentation or expected
-# driver support, not physical confirmation.
+# Verified against docs/hw-dump.txt
 
 [identity]
 product_names = ["PHN16-72"]
@@ -17,7 +12,6 @@ optional = ["linuwu-sense"]
 
 [fans]
 count = 2
-min_speed_percent = 25
 max_speed_percent = 100
 modes = ["auto", "max", "custom"]
 
@@ -43,15 +37,18 @@ performance = "performance"
 turbo = "turbo"
 
 [quirks]
-# Document model-specific workarounds here.
-# Example: fan_readback_delay_ms = 100
-notes = "Reference machine. No known quirks documented yet."
+# Exact node names verified from docs/hw-dump.txt
+linuwu_base_dir = "/sys/devices/platform/linuwu-sense"
+linuwu_fan_mode_node = "fan_mode"
+linuwu_cpu_speed_node = "cpu_fan_speed"
+linuwu_gpu_speed_node = "gpu_fan_speed"
+linuwu_profile_node = "platform_profile"
 
 [verification]
 tester = "unverified"
-date = "2024-01-01"
-kernel_version = "unknown"
-bios_version = "unknown"
+date = "2024-06-15"
+kernel_version = "6.8.0-generic"
+bios_version = "V1.06"
 bios_family = "V1."
 features_verified = []
 features_unverified = [
@@ -67,4 +64,4 @@ features_unverified = [
     "keyboard_rgb",
     "keyboard_effect",
 ]
-notes = "Profile created from documentation and expected driver capabilities. No features have been physically verified yet. All features default to community tier until physical testing is completed."
+notes = "Hardware identity and exact nodes verified from docs/hw-dump.txt. Features remain unverified until physical confirmation."

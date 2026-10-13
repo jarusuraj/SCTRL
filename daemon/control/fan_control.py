@@ -14,7 +14,9 @@ from sctrl.constants import FAN_LEASE_DEFAULT_S, FAN_LEASE_MAX_S
 from sctrl.errors import LeaseError, ErrorCode, SCTRLError
 from sctrl.models import FanCurve, FanLease, FanMode, FeatureId
 
+# pyrefly: ignore [missing-import]
 from daemon.capability_registry import CapabilityRegistry
+# pyrefly: ignore [missing-import]
 from daemon.control.fan_curve import FanCurveController, validate_fan_curve_strict
 from daemon.hardware.base import FanControlBackend, WriteResult
 
@@ -113,14 +115,15 @@ class FanControlManager:
                 error="At least one fan curve must be provided",
             )
 
-        # Validate curves against backend ranges
+        # Validate curves against backend ranges and zero-fan safety
+        allow_zero = getattr(self, "_allow_zero_fan", False)
         if cpu_curve:
             cpu_min, cpu_max = self._backend.get_supported_range("cpu")
-            validate_fan_curve_strict(cpu_curve, min_speed=cpu_min, max_speed=cpu_max)
+            validate_fan_curve_strict(cpu_curve, min_speed=cpu_min, max_speed=cpu_max, allow_zero_fan=allow_zero)
 
         if gpu_curve:
             gpu_min, gpu_max = self._backend.get_supported_range("gpu")
-            validate_fan_curve_strict(gpu_curve, min_speed=gpu_min, max_speed=gpu_max)
+            validate_fan_curve_strict(gpu_curve, min_speed=gpu_min, max_speed=gpu_max, allow_zero_fan=allow_zero)
 
         # Acquire lease
         target = "both" if (cpu_curve and gpu_curve) else ("cpu" if cpu_curve else "gpu")

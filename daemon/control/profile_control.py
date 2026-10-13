@@ -124,6 +124,8 @@ class ProfileManager:
             is_ac_online: Optional flag indicating AC power connection.
                           Turbo mode requires AC power if known.
         """
+        self._registry.check_write_permission(FeatureId.PERFORMANCE_PROFILE)
+
         if not self.is_supported:
             raise UnsupportedError("Performance profiles are not supported on this system")
 

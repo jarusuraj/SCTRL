@@ -19,8 +19,10 @@ def test_validate_fan_curve_strict() -> None:
         ],
         hysteresis_c=3,
         min_dwell_s=5,
+        below_first_speed=20,
     )
     validate_fan_curve_strict(curve, min_speed=0, max_speed=100)
+
 
     # Less than 2 points -> invalid
     with pytest.raises(ValidationError):

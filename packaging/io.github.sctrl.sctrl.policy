@@ -4,7 +4,8 @@
  "http://www.freedesktop.org/standards/PolicyKit/1.0/policyconfig.dtd">
 <policyconfig>
   <vendor>SCTRL Contributors</vendor>
-  <vendor_url>https://github.com/sctrl/sctrl</vendor_url>
+  <vendor_url>https://github.com/jarusuraj/SCTRL</vendor_url>
+
 
   <action id="io.github.sctrl.sctrl.read">
     <description>Read hardware telemetry and diagnostics</description>

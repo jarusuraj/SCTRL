@@ -115,12 +115,13 @@ class SysfsBatteryBackend(BatteryBackend):
             actual = self.get_charge_limit()
             verified = (actual == percent)
             return WriteResult(
-                success=True,
+                success=verified,
                 feature=FeatureId.CHARGE_LIMIT,
                 requested_value=percent,
                 actual_value=actual,
                 verified=verified,
                 backend=self.backend_name,
+                error="" if verified else f"Readback mismatch: wrote {percent}, got {actual}",
             )
         except PermissionError:
             return WriteResult(

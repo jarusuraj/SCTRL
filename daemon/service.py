@@ -312,6 +312,7 @@ class SCTRLService:
     # Fan actions
     def set_fan_mode(self, mode: str, holder: str = "user") -> dict[str, Any]:
         """Set fan mode (auto, max)."""
+        self._registry.check_write_permission(FeatureId.FAN_MODE)
         mode_str = mode.lower()
         if mode_str == "auto":
             res = self._fan_mgr.set_mode_auto(holder)
@@ -328,6 +329,7 @@ class SCTRLService:
         gpu_curve: FanCurve | None = None,
     ) -> dict[str, Any]:
         """Set custom fan curve."""
+        self._registry.check_write_permission(FeatureId.FAN_CURVE)
         res = self._fan_mgr.set_custom_curve(holder, cpu_curve, gpu_curve)
         return res.to_dict()
 
@@ -338,6 +340,7 @@ class SCTRLService:
     # Profile actions
     def set_profile(self, profile_name: str) -> dict[str, Any]:
         """Set performance profile (quiet, balanced, performance, turbo)."""
+        self._registry.check_write_permission(FeatureId.PERFORMANCE_PROFILE)
         try:
             lp = LogicalProfile(profile_name.lower())
         except ValueError:
@@ -347,40 +350,47 @@ class SCTRLService:
             self._config.default_profile = lp.value
             try:
                 self._config_store.save(self._config)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.error("Failed saving profile to config: %s", e)
+                raise
         return res.to_dict()
 
     # Battery actions
     def set_charge_limit(self, percent: int) -> dict[str, Any]:
         """Set battery charge threshold percentage."""
+        self._registry.check_write_permission(FeatureId.CHARGE_LIMIT)
         res = self._battery_mgr.set_charge_limit(percent)
         if res.success:
             self._config.charge_limit_percent = percent
             self._config.charge_limit_enabled = True
             try:
                 self._config_store.save(self._config)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.error("Failed saving charge limit to config: %s", e)
+                raise
         return res.to_dict()
 
     # Keyboard actions
     def set_keyboard_brightness(self, level: int) -> dict[str, Any]:
+        self._registry.check_write_permission(FeatureId.KEYBOARD_BRIGHTNESS)
         res = self._keyboard_mgr.set_brightness(level)
         if res.success:
             self._config.keyboard_brightness = level
             try:
                 self._config_store.save(self._config)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.error("Failed saving keyboard brightness to config: %s", e)
+                raise
         return res.to_dict()
 
     def set_keyboard_zone_color(self, zone_id: int, r: int, g: int, b: int) -> dict[str, Any]:
+        self._registry.check_write_permission(FeatureId.KEYBOARD_RGB)
         color = RGBColor(r, g, b)
         res = self._keyboard_mgr.set_zone_color(zone_id, color)
         return res.to_dict()
 
     def set_keyboard_effect(self, effect_name: str, speed: int = 50) -> dict[str, Any]:
+        self._registry.check_write_permission(FeatureId.KEYBOARD_EFFECT)
         try:
             effect = KeyboardEffect(effect_name.lower())
         except ValueError:
@@ -391,7 +401,12 @@ class SCTRLService:
     # Opt-in
     def set_feature_optin(self, feature_id: str, opted_in: bool) -> None:
         """Toggle opt-in for detected tier writes."""
-        self._registry.set_optin(feature_id, opted_in)
+        try:
+            feat_enum = FeatureId(feature_id)
+        except ValueError:
+            raise ValidationError(f"Invalid feature ID for opt-in: '{feature_id}'", field="feature_id")
+
+        self._registry.set_optin(feat_enum.value, opted_in)
 
     def subscribe_telemetry(self, callback: Callable[[TelemetrySnapshot], None]) -> None:
         self._telemetry_subscribers.append(callback)

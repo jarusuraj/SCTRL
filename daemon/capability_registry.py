@@ -129,39 +129,7 @@ class CapabilityRegistry:
             TierBlockedError: If the write is blocked by the current tier.
             SCTRLError: If the feature is not found or not writable.
         """
-        cap = self._capabilities.get(feature_id)
-        if cap is None:
-            raise SCTRLError(
-                f"Feature {feature_id.value} not found in capabilities",
-                code=ErrorCode.FEATURE_UNAVAILABLE,
-            )
-
-        if cap.status == FeatureStatus.UNSUPPORTED:
-            raise SCTRLError(
-                f"Feature {feature_id.value} is unsupported on this hardware",
-                code=ErrorCode.FEATURE_UNSUPPORTED,
-            )
-
-        if cap.status == FeatureStatus.DRIVER_MISSING:
-            raise SCTRLError(
-                f"Feature {feature_id.value} requires a missing driver",
-                code=ErrorCode.FEATURE_UNAVAILABLE,
-                details={"last_error": cap.last_error},
-            )
-
-        if cap.status == FeatureStatus.PERMISSION_DENIED:
-            raise SCTRLError(
-                f"Insufficient permissions for {feature_id.value}",
-                code=ErrorCode.PERMISSION_DENIED,
-            )
-
-        if not cap.writable:
-            raise SCTRLError(
-                f"Feature {feature_id.value} is read-only",
-                code=ErrorCode.FEATURE_UNAVAILABLE,
-            )
-
-        # Tier enforcement
+        # Tier enforcement first: overarching safety boundary
         if self._tier == SupportTier.UNSUPPORTED:
             raise TierBlockedError(
                 feature=feature_id.value,
@@ -194,6 +162,39 @@ class CapabilityRegistry:
                         "on detected hardware. Use SetFeatureOptIn."
                     ),
                 )
+
+        cap = self._capabilities.get(feature_id)
+        if cap is None:
+            raise SCTRLError(
+                f"Feature {feature_id.value} not found in capabilities",
+                code=ErrorCode.FEATURE_UNAVAILABLE,
+            )
+
+        if cap.status == FeatureStatus.UNSUPPORTED:
+            raise SCTRLError(
+                f"Feature {feature_id.value} is unsupported on this hardware",
+                code=ErrorCode.FEATURE_UNSUPPORTED,
+            )
+
+        if cap.status == FeatureStatus.DRIVER_MISSING:
+            raise SCTRLError(
+                f"Feature {feature_id.value} requires a missing driver",
+                code=ErrorCode.FEATURE_UNAVAILABLE,
+                details={"last_error": cap.last_error},
+            )
+
+        if cap.status == FeatureStatus.PERMISSION_DENIED:
+            raise SCTRLError(
+                f"Insufficient permissions for {feature_id.value}",
+                code=ErrorCode.PERMISSION_DENIED,
+            )
+
+        if not cap.writable:
+            raise SCTRLError(
+                f"Feature {feature_id.value} is read-only",
+                code=ErrorCode.FEATURE_UNAVAILABLE,
+            )
+
 
     def set_optin(self, feature_id: str, opted_in: bool) -> None:
         """Set or clear a feature opt-in.

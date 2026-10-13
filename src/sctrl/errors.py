@@ -190,3 +190,16 @@ class HardwareWriteError(HardwareError):
         if details:
             full_details.update(details)
         super().__init__(message, ErrorCode.WRITE_FAILED, interface=feature, details=full_details)
+
+
+class PermissionDeniedError(SCTRLError):
+    """Authorization, authentication, or permission failure."""
+
+    def __init__(
+        self,
+        message: str = "Permission denied",
+        code: ErrorCode = ErrorCode.PERMISSION_DENIED,
+        details: dict[str, Any] | None = None,
+    ) -> None:
+        super().__init__(message, code, details)
+
